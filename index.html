@@ -49,8 +49,8 @@ canvas{width:100%;height:auto;border:1px solid #b9c6cf;border-radius:4px}
 </div>
 <script>
 /* ===== CONFIGURACIÓN DEL DOCENTE ===== */
-const CFG={FORMS_URL:"https://forms.cloud.microsoft/r/1UxBk3MyW7",LOCK_MIN:3,SALT:"STEVENTON",LIVE_URL:"",DOCENTE_HASH:"3CBF-3409"};
-
+const CFG={FORMS_URL:"https://forms.cloud.microsoft/r/1UxBk3MyW7",LOCK_MIN:3,SALT:"STEVENTON",LIVE_URL:"https://orgulloyprejuicioconsola-default-rtdb.firebaseio.com",DOCENTE_HASH:"3CBF-3409"};
+ 
 const $=id=>document.getElementById(id);
 const S={name:"",grupo:"",err:0,hints:0,t0:0,room:0,sid:""};
 const ls={g:k=>{try{return localStorage.getItem(k)}catch(e){return null}},s:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
@@ -58,7 +58,7 @@ const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').re
 const fmt=s=>{s=Math.max(0,Math.ceil(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 const exits=()=>+ls.g('pp_exits')||0;
 let active=false,tm;
-
+ 
 /* ===== BLOQUEO POR CAMBIAR DE PESTAÑA ===== */
 function lock(){
   if(!active)return;
@@ -76,7 +76,7 @@ function tick(){
 document.addEventListener('visibilitychange',()=>{if(document.hidden)lock()});
 window.addEventListener('blur',lock);
 tick(); // si recargan la página durante el castigo, sigue vigente
-
+ 
 /* ===== DATOS DEL JUEGO ===== */
 const ROOMS=[
  {t:'Sala 1 · Longbourn',s:'La biblioteca del señor Bennet'},
@@ -133,27 +133,27 @@ const EV=[
  ['Visita a Pemberley, con el encuentro inesperado',43],
  ['Se descubre la fuga de Lydia con Wickham',46],
  ['Lady Catherine visita Longbourn para exigir una promesa a Elizabeth',56]];
-
+ 
 /* ===== CÓDIGO DE VERIFICACIÓN ===== */
 const hash=s=>{let h=2166136261,g=5381;for(const c of s){h=Math.imul(h^c.charCodeAt(0),16777619);g=Math.imul(g,33)^c.charCodeAt(0)}
   const p=v=>(v>>>0).toString(16).padStart(8,'0').toUpperCase();return p(h).slice(0,4)+'-'+p(g).slice(0,4)};
 const vcode=(n,secs,e,h,x,st)=>hash([norm(n),secs,e,h,x,st,CFG.SALT].join('|'));
-
+ 
 /* ===== SEGUIMIENTO EN VIVO (opcional: requiere CFG.LIVE_URL) ===== */
 function report(st,ex){
-  if(!https://orgulloyprejuicioconsola-default-rtdb.firebaseio.com/||!S.sid)return;
+  if(!CFG.LIVE_URL||!S.sid)return;
   const l=+ls.g('pp_lock')||0;
-  try{fetch(https://orgulloyprejuicioconsola-default-rtdb.firebaseio.com/+'/sesiones/'+S.sid+'.json',{method:'PUT',keepalive:true,body:JSON.stringify({n:S.name,g:S.grupo,r:S.room,e:S.err,h:S.hints,x:ex===undefined?exits():ex,s:st||'curso',l:l,t:Date.now()})}).catch(()=>{})}catch(e){}
+  try{fetch(CFG.LIVE_URL+'/sesiones/'+S.sid+'.json',{method:'PUT',keepalive:true,body:JSON.stringify({n:S.name,g:S.grupo,r:S.room,e:S.err,h:S.hints,x:ex===undefined?exits():ex,s:st||'curso',l:l,t:Date.now()})}).catch(()=>{})}catch(e){}
 }
 setInterval(()=>{if(active)report()},20000);
-
+ 
 /* ===== PANTALLAS ===== */
 function hud(){
   $('top').innerHTML=S.name?`<div class="bar"><span>🎩 ${S.name.replace(/</g,'&lt;')} · ${S.grupo}</span><span>Errores: ${S.err} · Pistas: ${S.hints}</span><span id="clk">⏱ 00:00</span></div>`:'';
   if(active)report();
 }
 setInterval(()=>{if(active&&$('clk'))$('clk').textContent='⏱ '+fmt((Date.now()-S.t0)/1000)},1000);
-
+ 
 function intro(){
   $('stage').innerHTML=`<h1>Orgullo y prejuicio</h1><p><i>Escape room literario · Décimo año</i></p>
   <div class="card"><p>Una verdad universalmente reconocida: quien termina la novela, escapa. Recorrerás seis salas y cada una exige haber leído el libro (la edición del curso te será de gran ayuda).</p>
@@ -177,7 +177,7 @@ function go(i){
   $('stage').innerHTML=`<p style="font-size:.9rem;color:var(--blue)">${dots}</p><h2>${ROOMS[i].t}</h2><p><i>${ROOMS[i].s}</i></p><div id="room"></div>`;
   [()=>qroom(0),()=>mur(1),()=>qroom(2),()=>mur(3),r5,r6][i]();
 }
-
+ 
 /* ---- Salas de preguntas abiertas (1 y 3) ---- */
 let okQ,hQ,QI;
 function qroom(i){
@@ -196,7 +196,7 @@ function hint(i){
   if(!hQ.has(i)){hQ.add(i);S.hints++;hud()}
   if(!okQ.has(i)){$('m'+i).className='m';$('m'+i).textContent='Pista: busca en el '+QS[QI][i].h+'.'}
 }
-
+ 
 /* ---- Salas de murdoku (2 y 4) ---- */
 let Z,B,sel,hintM;
 function mur(i){
@@ -244,7 +244,7 @@ function accuse(){
   if(v!==Z.culp){S.err++;hud();$('ma').className='m no';$('ma').textContent='✖ Esa persona estaba en otra sala. Mira dónde cayó '+Z.vi+'.';return}
   $('acc').innerHTML=`<div class="card"><p class="ok"><b>✔ ¡Caso resuelto!</b></p><p>${Z.end}</p><button onclick="go(${S.room+1})">Continuar</button></div>`;
 }
-
+ 
 /* ---- Sala 5: ordenar la historia ---- */
 let ord;
 function r5(){
@@ -261,18 +261,18 @@ function chkO(){
   if(good<8){S.err++;hud();$('me').className='m no';$('me').textContent=good+' de 8 en su lugar. Consulta el índice y los capítulos del libro.';return}
   go(5);
 }
-
+ 
 const QZ=[
- {q:'La novela abre con una frase solemne sobre los hombres solteros y ricos que «necesitan» esposa. ¿Qué efecto produce?',o:['La ironía de que las familias con hijas casaderas quienes buscan marido rico.','Presenta una ley de Inglaterra que obliga a casarse.','Describe con seriedad el carácter de Darcy.','Muestra que los ricos son los más desdichados.'],e:'Capítulo 1. La ironía revela que el matrimonio era la gran salida económica de las mujeres.'},
- {q:'¿Por qué es tan urgente casar bien a las hermanas Bennet?',o:['Para que Longbourn por ser el pariente varón y las dejaría sin sustento si el padre muere.','Porque el señor Bennet quiere mudarse a Londres.','Porque la ley exige casarse a los dieciocho años.','Porque la señora Bennet heredó una deuda enorme.'],e:'Capítulos 1 y 13. La herencia vinculada deja a la familia en una situación económica frágil.'},
- {q:'Elizabeth rechaza a Collins y Charlotte lo acepta. ¿Qué contraste plantea la novela?',o:['El matrimonio es la que búsqueda de afecto y respeto o a la seguridad económica.','Elizabeth es pobre y Charlotte es rica.','Charlotte ama a Collins y Elizabeth no.','Ambas lo rechazan por orden de lady Catherine.'],e:'Capítulos 19 y 22. Para Charlotte, el matrimonio era la «única colocación honrosa» de una joven sin fortuna.'},
- {q:'En su carta, ¿por qué dice Darcy que separó a Bingley de Jane?',o:['Creyó que Jane no sentía verdadero afecto y le molestó la falta de decoro de sus familiares.','Porque Jane estaba comprometida con otro hombre.','Porque Bingley se lo pidió para escapar de la boda.','Porque lady Catherine se lo ordenó.'],e:'Capítulo 35. Fue un error de juicio por las apariencias: la serenidad de Jane ocultaba sus sentimientos.'},
- {q:'¿Qué revela la carta de Darcy sobre Wickham?',o:['Que su fama de víctima era falsa y que intentó fugarse con Georgiana.','Que Wickham es el verdadero heredero de Pemberley.','Que Wickham salvó a Darcy de un escándalo.','Que Wickham es primo de Elizabeth.'],e:'Capítulo 35. Elizabeth descubre que su simpatía por Wickham fue un error de juicio.'},
+ {q:'La novela abre con una frase solemne sobre los hombres solteros y ricos que «necesitan» esposa. ¿Qué efecto produce?',o:['Ironía: en realidad son las familias con hijas casaderas, como los Bennet, quienes buscan marido rico.','Presenta una ley de Inglaterra que obliga a casarse.','Describe con seriedad el carácter de Darcy.','Muestra que los ricos son los más desdichados.'],e:'Capítulo 1. La ironía revela que el matrimonio era la gran salida económica de las mujeres.'},
+ {q:'¿Por qué es tan urgente casar bien a las hermanas Bennet?',o:['Porque Longbourn pasará a un pariente varón y ellas quedarían sin sustento si el padre muere.','Porque el señor Bennet quiere mudarse a Londres.','Porque la ley exige casarse a los dieciocho años.','Porque la señora Bennet heredó una deuda enorme.'],e:'Capítulos 1 y 13. La herencia vinculada deja a la familia en una situación económica frágil.'},
+ {q:'Elizabeth rechaza a Collins y Charlotte lo acepta. ¿Qué contraste plantea la novela?',o:['Dos ideas del matrimonio: la que busca afecto y respeto frente a la que busca seguridad económica.','Elizabeth es pobre y Charlotte es rica.','Charlotte ama a Collins y Elizabeth no.','Ambas lo rechazan por orden de lady Catherine.'],e:'Capítulos 19 y 22. Para Charlotte, el matrimonio era la «única colocación honrosa» de una joven sin fortuna.'},
+ {q:'En su carta, ¿por qué dice Darcy que separó a Bingley de Jane?',o:['Creyó que Jane no sentía verdadero afecto y le molestó la falta de decoro de la madre y de las hermanas menores.','Porque Jane estaba comprometida con otro hombre.','Porque Bingley se lo pidió para escapar de la boda.','Porque lady Catherine se lo ordenó.'],e:'Capítulo 35. Fue un error de juicio por las apariencias: la serenidad de Jane ocultaba sus sentimientos.'},
+ {q:'¿Qué revela la carta de Darcy sobre Wickham?',o:['Que su fama de víctima era falsa y que intentó fugarse con Georgiana, la hermana menor de Darcy.','Que Wickham es el verdadero heredero de Pemberley.','Que Wickham salvó a Darcy de un escándalo.','Que Wickham es primo de Elizabeth.'],e:'Capítulo 35. Elizabeth descubre que su simpatía por Wickham fue un error de juicio.'},
  {q:'Elizabeth se encanta con los modales de Wickham y rechaza a Darcy a primera vista. ¿Qué tema ilustra esto?',o:['Que las primeras impresiones y las buenas maneras pueden engañar, y que el prejuicio nubla el juicio.','Que los oficiales siempre son sinceros.','Que la timidez es señal de mal carácter.','Que la riqueza vuelve virtuosa a la gente.'],e:'Capítulos 3, 16 y 36. Más tarde Elizabeth reconoce que había sido «ciega, parcial, prejuiciosa, absurda».'},
  {q:'En Hunsford, ¿por qué rechaza Elizabeth la primera declaración de Darcy?',o:['Lo considera culpable de separar a Jane de Bingley y de perjudicar a Wickham, y su declaración le pareció arrogante.','Porque ya estaba comprometida con Collins.','Porque Darcy no tenía fortuna.','Porque lady Catherine se lo prohibió.'],e:'Capítulo 34. Darcy mezcla amor y orgullo: habla de la «inferioridad» de Elizabeth y de los obstáculos de familia.'},
- {q:'¿Cómo se resuelve el escándalo de la fuga de Lydia?',o:['Darcy los localiza y, en secreto, paga las deudas de Wickham y arregla la boda.','El señor Bennet reta a duelo a Wickham.','Lydia regresa sola a Longbourn y el asunto se olvida.','Bingley paga la dote de las cinco hermanas.'],e:'Capítulos 52 y 59. El gesto muestra su cambio: el orgullo de Darcy cede ante la generosidad y la discreción.'},
- {q:'En la visita de lady Catherine a Longbourn, ¿qué muestra la respuesta de Elizabeth?',o:['Que defiende su libertad de elegir y se considera igual a Darcy, pese a la diferencia de clase.','Que acepta no casarse con Darcy para evitar conflictos.','Que teme perder la herencia de Longbourn.','Que desea ser aceptada por la alta sociedad.'],e:'Capítulo 56. Elizabeth desafía la presión social y las obligaciones que impone la jerarquía.'},
- {q:'El final con dos bodas por afecto, pero también con casa, renta y buena posición, ¿qué dice sobre el género sentimental?',o:['Que vuelve verosímil el final feliz: el amor necesita autoconocimiento y condiciones materiales.','Que el amor es suficiente por sí solo y el dinero no importa.','Que el amor siempre termina en tragedia.','Que el matrimonio es solo una obligación social sin sentimientos.'],e:'Capítulos 58 a 61. Austen combina el romance con el realismo social y la ironía.'}];
+ {q:'¿Cómo se resuelve el escándalo de la fuga de Lydia?',o:['Darcy localiza a la pareja y, en secreto, paga las deudas de Wickham y arregla la boda.','El señor Bennet reta a duelo a Wickham.','Lydia regresa sola a Longbourn y el asunto se olvida.','Bingley paga la dote de las cinco hermanas.'],e:'Capítulos 52 y 59. El gesto muestra su cambio: el orgullo de Darcy cede ante la generosidad y la discreción.'},
+ {q:'En la visita de lady Catherine a Longbourn, ¿qué muestra la respuesta de Elizabeth?',o:['Que defiende su libertad de elegir y se considera igual a Darcy, hija de un caballero, pese a la diferencia de clase.','Que acepta no casarse con Darcy para evitar conflictos.','Que teme perder la herencia de Longbourn.','Que desea ser aceptada por la alta sociedad.'],e:'Capítulo 56. Elizabeth desafía la presión social y las obligaciones que impone la jerarquía.'},
+ {q:'El final con dos bodas por afecto, pero también con casa, renta y buena posición, ¿qué dice sobre el género sentimental?',o:['Que cumple el final feliz del romance, pero lo vuelve verosímil: el amor necesita autoconocimiento y condiciones materiales.','Que el amor es suficiente por sí solo y el dinero no importa.','Que el amor siempre termina en tragedia.','Que el matrimonio es solo una obligación social sin sentimientos.'],e:'Capítulos 58 a 61. Austen combina el romance con el realismo social y la ironía.'}];
 let qzOk;
 function r6(){
   qzOk=new Set();
@@ -287,7 +287,7 @@ function zp(i,k,b){
     $('zm'+i).className='m ok';$('zm'+i).textContent='✔ '+QZ[i].e;if(qzOk.size===QZ.length)$('zn').disabled=false}
   else{S.err++;hud();b.disabled=true;b.classList.add('badopt');$('zm'+i).className='m no';$('zm'+i).textContent='✖ Esa no es. Piensa en lo que ocurre en la novela e inténtalo de nuevo.'}
 }
-
+ 
 /* ---- Final: certificado (la «captura») ---- */
 function fin(){
   active=false;
@@ -330,7 +330,7 @@ function forms(){
   if(CFG.FORMS_URL.startsWith('PEGA')){alert('El docente aún no configuró el enlace de Microsoft Forms.');return}
   window.open(CFG.FORMS_URL,'_blank','noopener');
 }
-
+ 
 /* ---- Panel docente (con contraseña): abrir con index.html#docente ---- */
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pwh=s=>hash('pp-docente|'+s);
@@ -380,9 +380,10 @@ function vf(){
   $('vr').textContent=vcode($('vn').value.trim(),s,+$('ve').value,+$('vh').value,+$('vx').value,$('vs').value.trim());
 }
 function test(i){S.name='Docente Prueba';S.grupo='10A';S.t0=Date.now();S.err=0;S.hints=0;S.sid='';active=false;i<6?go(i):fin()}
-
+ 
 window.addEventListener('hashchange',()=>location.reload());
 intro();
 </script>
 </body>
 </html>
+ 
