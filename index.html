@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orgullo y prejuicio · Escape Room</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Spectral:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#dde5ea;--ink:#1f2a36;--blue:#3d5a73;--gold:#a8842c;--card:#fbfaf6;--ok:#2f6b3f;--bad:#a12626}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 Spectral,Georgia,serif}
+h1,h2{font-family:'Cormorant Garamond',Georgia,serif;margin:.2em 0;line-height:1.1}
+h1{font-size:2.6rem;color:var(--blue)}h2{font-size:1.9rem}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid #b9c6cf;border-left:6px solid var(--blue);border-radius:4px;padding:18px 20px;margin:14px 0}
+.bar{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;font-size:.9rem;color:var(--blue);border-bottom:1px solid #b9c6cf;padding-bottom:6px}
+input,select{font:inherit;padding:9px 11px;border:1px solid #8ea2b0;border-radius:4px;background:#fff;color:var(--ink);min-width:0}
+button{font:inherit;font-weight:600;padding:9px 16px;border:0;border-radius:4px;background:var(--blue);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--blue);border:1px solid var(--blue)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.row input{flex:1 1 180px}
+small.m{display:block;min-height:1.4em}.ok{color:var(--ok)}.no{color:var(--bad)}
+.clue{margin:.5em 0;padding-left:.2em}
+.grid{display:grid;grid-template-columns:28px repeat(4,1fr);gap:3px;max-width:380px;margin:10px auto}
+.grid b{text-align:center;color:var(--blue);align-self:center}
+.c{aspect-ratio:1;font-size:clamp(1.3rem,6vw,1.9rem);padding:0;background:var(--rc);color:var(--ink);border:2px solid transparent;border-radius:3px}
+.c.bad{border-color:var(--bad)}.c.v{cursor:default}
+.leg{display:flex;gap:6px 14px;flex-wrap:wrap;justify-content:center;font-size:.85rem}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.pal{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.pal button{background:#fff;color:var(--ink);border:2px solid #8ea2b0;font-size:.95rem}.pal button.on{border-color:var(--gold);background:#f3ead0}
+.ev{display:flex;gap:8px;align-items:center;border:1px solid #b9c6cf;background:#fff;padding:8px 10px;border-radius:4px;margin:6px 0}
+.ev span{flex:1}.ev button{padding:4px 10px}
+canvas{width:100%;height:auto;border:1px solid #b9c6cf;border-radius:4px}
+#lock{position:fixed;inset:0;background:#1f2a36;color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:99}
+#lock b{font:700 5rem 'Cormorant Garamond',serif;color:#e0c26e}
+</style>
+</head>
+<body>
+<div id="lock"><h2>Salida detectada</h2><p>Abandonaste la pestaña del juego. Una dama de buena cuna no huye de la sala.<br>Podrás continuar cuando termine la penitencia:</p><b id="cd">03:00</b><p>Quedó registrada en tu certificado.</p></div>
+<div class="wrap">
+<div id="top"></div>
+<div id="stage"></div>
+</div>
+<script>
+/* ===== CONFIGURACIÓN DEL DOCENTE ===== */
+const CFG={FORMS_URL:"https://forms.cloud.microsoft/r/1UxBk3MyW7",LOCK_MIN:3,SALT:"STEVENTON"};
+
+const $=id=>document.getElementById(id);
+const S={name:"",grupo:"",err:0,hints:0,t0:0,room:0};
+const ls={g:k=>{try{return localStorage.getItem(k)}catch(e){return null}},s:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const fmt=s=>{s=Math.max(0,Math.ceil(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const exits=()=>+ls.g('pp_exits')||0;
+let active=false,tm;
+
+/* ===== BLOQUEO POR CAMBIAR DE PESTAÑA ===== */
+function lock(){
+  if(!active)return;
+  const n=Date.now();
+  if((+ls.g('pp_lock')||0)>n)return;
+  ls.s('pp_lock',n+CFG.LOCK_MIN*6e4);ls.s('pp_exits',exits()+1);tick();
+}
+function tick(){
+  clearInterval(tm);
+  const f=()=>{const r=((+ls.g('pp_lock')||0)-Date.now())/1000,o=$('lock');
+    if(r<=0){o.style.display='none';clearInterval(tm);return}
+    o.style.display='flex';$('cd').textContent=fmt(r)};
+  f();tm=setInterval(f,500);
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)lock()});
+window.addEventListener('blur',lock);
+tick(); // si recargan la página durante el castigo, sigue vigente
+
+/* ===== DATOS DEL JUEGO ===== */
+const ROOMS=[
+ {t:'Sala 1 · Longbourn',s:'La biblioteca del señor Bennet'},
+ {t:'Sala 2 · Netherfield',s:'El caso del baile'},
+ {t:'Sala 3 · Rosings y Hunsford',s:'La mesa de lady Catherine'},
+ {t:'Sala 4 · Brighton',s:'El caso de la fuga'},
+ {t:'Sala 5 · Pemberley',s:'El orden del destino'}];
+const QS={
+0:[
+ {q:'La finca vecina que alquila el señor Bingley, y que desata la fiebre casamentera de la señora Bennet, se llama…',a:/netherfield/,h:'Capítulo 1'},
+ {q:'En el baile de Meryton corre el rumor de que Darcy tiene una renta de ¿cuántas libras al año?',a:/diez mil|10 ?000|10\.000/,h:'Capítulo 3'},
+ {q:'Por falta de herederos varones, Longbourn pasará a un pariente lejano. ¿Cuál es su apellido?',a:/collins/,h:'Capítulos 1 y 13 (la carta que anuncia su visita)'},
+ {q:'Darcy cuenta en su carta que Wickham intentó fugarse en Ramsgate con su hermana menor. ¿Cómo se llama ella?',a:/georgiana/,h:'Capítulo 35'},
+ {q:'En Pemberley, ¿cómo se apellida el ama de llaves que elogia a su amo ante Elizabeth?',a:/reynolds/,h:'Capítulo 43'}],
+2:[
+ {q:'Collins vive en Hunsford gracias a su protectora, lady Catherine de Bourgh. ¿Cómo se llama la finca de ella, donde cenan los invitados?',a:/rosings/,h:'Capítulos 28 a 30'},
+ {q:'La hija enfermiza de lady Catherine, con quien se rumorea que Darcy se casará, se llama de nombre…',a:/anne|ana/,h:'Capítulos 16 y 31'},
+ {q:'¿Qué amiga de Elizabeth acepta casarse con el señor Collins?',a:/charlotte|lucas/,h:'Capítulo 22'},
+ {q:'¿Cuál es el apellido del primo de Darcy, hijo menor de un lord, que visita Rosings con él?',a:/fitzwilliam/,h:'Capítulos 30 a 33'},
+ {q:'Al rechazarlo en Hunsford, Elizabeth le dice a Darcy que sería el último ___ en la tierra con quien podría casarse. Completa.',a:/hombre/,h:'Capítulo 34'}]};
+const PZ={
+1:{n:4,map:["BBBT","LLBT","LCCT","LCCT"],
+ rn:{B:'Salón de baile',T:'Terraza',L:'Biblioteca',C:'Comedor'},rc:{B:'#f2dcae',T:'#cfe3cc',L:'#d6d0ea',C:'#f0cdc8'},
+ ppl:{D:['🎩','Darcy'],E:['🌹','Elizabeth'],M:['👒','La señora Bennet'],C:['📖','El señor Collins']},
+ sol:{D:[1,1],E:[0,3],M:[2,0],C:[3,2]},vic:[2,3],vi:'💔',culp:'E',
+ intro:'<b>El crimen.</b> Durante el baile de Netherfield, alguien asesinó <b>la objetividad</b> (💔). Es culpable quien estaba en la misma sala que la víctima.',
+ clues:['El caballero que halló a Elizabeth «aceptable, pero no lo suficientemente hermosa para tentarme» compartía sala con la dama a la que la tos de Kitty destrozaba los «nervios».',
+ 'El clérigo que heredará Longbourn y que presume de su protectora, lady Catherine, estaba en el Comedor.',
+ 'La dama de los «nervios» se encontraba en la fila C.',
+ 'Elizabeth, hastiada de miradas y comentarios, no estaba en el Salón de baile.',
+ 'Darcy estaba en una fila más arriba que el clérigo.'],
+ hint:'«Aceptable…» se dice en el capítulo 3; los «nervios» de la señora Bennet, en el capítulo 1; el heredero y protegido de lady Catherine aparece desde el capítulo 13.',
+ end:'La culpable es <b>Elizabeth</b>. Su prejuicio, alimentado por las mentiras de Wickham y por el desprecio de Darcy en Meryton, mató la objetividad con la que debía juzgar. Más adelante reconocerá que había sido «ciega, parcial, prejuiciosa, absurda» (capítulo 36).<br><i>Para pensar: ¿qué papel juega el orgullo de Darcy en esa misma escena?</i>'},
+3:{n:5,map:["CCCPP","CFFPP","CFLLP","FFLBB","LLBBB"],
+ rn:{C:'Campamento',P:'Playa',F:'Alojamiento',L:'Salón de lectura',B:'Paseo marítimo'},rc:{C:'#f0cdc8',P:'#f2dcae',F:'#cfe3cc',L:'#d6d0ea',B:'#c9dcec'},
+ ppl:{L:['🎀','Lydia'],W:['🎖️','Wickham'],F:['🧣','La señora Forster'],D:['🎩','Darcy'],G:['🧳','El señor Gardiner']},
+ sol:{L:[4,0],W:[3,4],F:[0,2],D:[2,3],G:[1,1]},vic:[4,2],vi:'🥀',culp:'W',
+ intro:'<b>El crimen.</b> En Brighton, alguien asesinó <b>la reputación de Lydia</b> (🥀) y con ella la de toda su familia. Es culpable quien estaba en la misma sala que la víctima. Esta vez habrá cinco sospechosos y los testimonios son más sutiles.',
+ clues:['La menor de las Bennet, que presume de ser «la más alta» aunque es la más joven, compartía sala con el dueño de Pemberley.',
+ 'La menor de las Bennet estaba en una columna más a la izquierda que la «inapreciable amiga» que la invitó a Brighton, la esposa del coronel Forster.',
+ 'El oficial de la milicia que le contó a Elizabeth su versión sobre Darcy no estaba en la Playa.',
+ 'El tío de la calle Gracechurch no estaba en el Campamento.',
+ 'La esposa del coronel Forster estaba en el Campamento.',
+ 'El tío de la calle Gracechurch estaba en una columna más a la izquierda que la esposa del coronel.'],
+ hint:'La señora Forster aparece en el capítulo 41; Wickham cuenta su versión a Elizabeth en el capítulo 16; los Gardiner viven en la calle Gracechurch (capítulos 25 y 27); Lydia aparece desde los primeros capítulos.',
+ end:'El culpable es <b>Wickham</b>. Su fuga con Lydia (capítulo 46) puso en peligro la reputación de las cinco hermanas. El remedio vino de quien menos se esperaba: el señor Bennet descubre después que Darcy «lo hizo todo», desde el casamiento hasta las deudas (capítulo 59).<br><i>Para pensar: ¿por qué Darcy actúa en secreto y qué dice eso de su cambio?</i>'}};
+const EV=[
+ ['Baile en Netherfield, donde la familia Bennet se expone ante Darcy',18],
+ ['Collins se declara a Elizabeth y es rechazado',19],
+ ['Charlotte Lucas acepta casarse con Collins',22],
+ ['Darcy se declara en Hunsford y Elizabeth lo rechaza',34],
+ ['Elizabeth lee la carta de Darcy',35],
+ ['Visita a Pemberley, con el encuentro inesperado',43],
+ ['Se descubre la fuga de Lydia con Wickham',46],
+ ['Lady Catherine visita Longbourn para exigir una promesa a Elizabeth',56]];
+
+/* ===== CÓDIGO DE VERIFICACIÓN ===== */
+const hash=s=>{let h=2166136261,g=5381;for(const c of s){h=Math.imul(h^c.charCodeAt(0),16777619);g=Math.imul(g,33)^c.charCodeAt(0)}
+  const p=v=>(v>>>0).toString(16).padStart(8,'0').toUpperCase();return p(h).slice(0,4)+'-'+p(g).slice(0,4)};
+const vcode=(n,secs,e,h,x,st)=>hash([norm(n),secs,e,h,x,st,CFG.SALT].join('|'));
+
+/* ===== PANTALLAS ===== */
+function hud(){
+  $('top').innerHTML=S.name?`<div class="bar"><span>🎩 ${S.name.replace(/</g,'&lt;')} · ${S.grupo}</span><span>Errores: ${S.err} · Pistas: ${S.hints}</span><span id="clk">⏱ 00:00</span></div>`:'';
+}
+setInterval(()=>{if(active&&$('clk'))$('clk').textContent='⏱ '+fmt((Date.now()-S.t0)/1000)},1000);
+
+function intro(){
+  $('stage').innerHTML=`<h1>Orgullo y prejuicio</h1><p><i>Escape room literario · Décimo año</i></p>
+  <div class="card"><p>Una verdad universalmente reconocida: quien termina la novela, escapa. Recorrerás cinco salas y cada una exige haber leído el libro (la edición del curso te será de gran ayuda).</p>
+  <p><b>Reglas</b></p><ul>
+  <li>Si cambias de pestaña o de aplicación, quedarás bloqueado ${CFG.LOCK_MIN} minutos y quedará anotado en tu certificado.</li>
+  <li>Los errores y las pistas también se anotan.</li>
+  <li>Al final obtendrás un certificado con tu nombre y un código de verificación para enviarlo por Microsoft Forms.</li></ul>
+  <div class="row"><input id="nm" placeholder="Nombre completo (2 a 5 palabras)" autocomplete="name"><select id="gr" aria-label="Sección"><option value="">Sección</option><option>10A</option><option>10B</option><option>10C</option></select></div>
+  <small class="m no" id="em"></small>
+  <button onclick="start()">Entrar a Longbourn</button></div>`+(location.hash==='#docente'?docente():'');
+}
+function start(){
+  const n=$('nm').value.trim().replace(/\s+/g,' '),w=n.split(' '),g=$('gr').value;
+  if(w.length<2||w.length>5||!w.every(x=>/^\p{L}[\p{L}'’.-]*$/u.test(x))){$('em').textContent='Escribe tu nombre completo: entre 2 y 5 palabras, solo con letras.';return}
+  if(!g){$('em').textContent='Elige tu sección (10A, 10B o 10C).';return}
+  S.name=n;S.grupo=g;S.t0=Date.now();active=true;go(0);
+}
+function go(i){
+  S.room=i;hud();
+  const dots=ROOMS.map((r,k)=>`<span style="opacity:${k<=i?1:.35}">${k<i?'✔':'●'} ${r.t.split(' · ')[0]}</span>`).join(' &nbsp; ');
+  $('stage').innerHTML=`<p style="font-size:.9rem;color:var(--blue)">${dots}</p><h2>${ROOMS[i].t}</h2><p><i>${ROOMS[i].s}</i></p><div id="room"></div>`;
+  [()=>qroom(0),()=>mur(1),()=>qroom(2),()=>mur(3),r5][i]();
+}
+
+/* ---- Salas de preguntas abiertas (1 y 3) ---- */
+let okQ,hQ,QI;
+function qroom(i){
+  QI=i;okQ=new Set();hQ=new Set();
+  $('room').innerHTML=`<p>${i?'Lady Catherine no recibe a quien no conoce la historia. Responde las cinco preguntas para cruzar la puerta de Rosings.':'La puerta de la biblioteca está cerrada. Responde las cinco preguntas para abrirla. Si dudas, ¡busca en el libro!'}</p>`+
+  QS[i].map((o,k)=>`<div class="card"><p>${k+1}. ${o.q}</p><div class="row"><input id="i${k}" autocomplete="off" placeholder="Tu respuesta"><button onclick="chk(${k})">Probar</button><button class="ghost" onclick="hint(${k})">Pista</button></div><small class="m" id="m${k}"></small></div>`).join('')+
+  `<button id="nx" disabled onclick="go(${i+1})">Abrir la puerta</button>`;
+}
+function chk(i){
+  const v=norm($('i'+i).value);if(!v||okQ.has(i))return;
+  if(QS[QI][i].a.test(v)){okQ.add(i);$('m'+i).className='m ok';$('m'+i).textContent='✔ Correcto.';$('i'+i).disabled=true;
+    if(okQ.size===QS[QI].length)$('nx').disabled=false}
+  else{S.err++;hud();$('m'+i).className='m no';$('m'+i).textContent='✖ Esa no es. Revisa el libro e inténtalo de nuevo.'}
+}
+function hint(i){
+  if(!hQ.has(i)){hQ.add(i);S.hints++;hud()}
+  if(!okQ.has(i)){$('m'+i).className='m';$('m'+i).textContent='Pista: busca en el '+QS[QI][i].h+'.'}
+}
+
+/* ---- Salas de murdoku (2 y 4) ---- */
+let Z,B,sel,hintM;
+function mur(i){
+  Z=PZ[i];B=Array.from({length:Z.n},()=>Array(Z.n).fill(''));sel=null;hintM=false;
+  $('room').innerHTML=`<div class="card"><p>${Z.intro}</p>
+  <p><b>Cómo se juega.</b> Elige un personaje y toca una casilla para ubicarlo. Cada personaje va en una fila y una columna distintas, como en un sudoku. Los colores son las salas. La casilla con ${Z.vi} está bloqueada.</p>
+  <div class="clue"><b>Testimonios:</b></div>${Z.clues.map((c,k)=>`<div class="clue">${k+1}. ${c}</div>`).join('')}
+  <div class="row"><button class="ghost" onclick="hintMu()">Pista (quién es quién)</button></div><small class="m" id="mh"></small></div>
+  <div class="pal" id="pal"></div><div id="gd"></div><div class="leg">${Object.keys(Z.rn).map(k=>`<span><i style="background:${Z.rc[k]}"></i>${Z.rn[k]}</span>`).join('')}</div>
+  <p style="text-align:center"><small class="m" id="mm"></small><button onclick="chkM()">Revisar tablero</button></p><div id="acc"></div>`;
+  drawM();
+}
+function hintMu(){if(!hintM){hintM=true;S.hints++;hud()}$('mh').textContent='Pistas: '+Z.hint}
+function conflicts(){
+  const bad=new Set(),L=[];
+  B.forEach((row,r)=>row.forEach((p,c)=>{if(p)L.push([r,c])}));
+  for(const [a,b] of L)for(const [c,d] of L)if((a!==c||b!==d)&&(a===c||b===d))bad.add(a+','+b);
+  return bad;
+}
+function drawM(){
+  $('pal').innerHTML=Object.entries(Z.ppl).map(([k,[e,n]])=>`<button class="${sel===k?'on':''}" onclick="sel=sel==='${k}'?null:'${k}';drawM()">${e} ${n}${B.some(r=>r.includes(k))?' ✔':''}</button>`).join('');
+  const bad=conflicts(),N=Z.n;let h='<b></b>'+Array.from({length:N},(_,k)=>`<b>${k+1}</b>`).join('');
+  for(let r=0;r<N;r++){h+=`<b>${'ABCDE'[r]}</b>`;
+    for(let c=0;c<N;c++){const v=r===Z.vic[0]&&c===Z.vic[1],k=Z.map[r][c];
+      h+=`<button class="c${v?' v':''}${bad.has(r+','+c)?' bad':''}" style="--rc:${Z.rc[k]}" ${v?'disabled':`onclick="cell(${r},${c})"`} aria-label="Casilla ${'ABCDE'[r]}${c+1}, ${Z.rn[k]}">${v?Z.vi:(B[r][c]?Z.ppl[B[r][c]][0]:'')}</button>`}}
+  $('gd').innerHTML=`<div class="grid" style="grid-template-columns:28px repeat(${N},1fr);max-width:${N*84}px">${h}</div>`;
+}
+function cell(r,c){
+  const cur=B[r][c];
+  if(cur&&(!sel||cur===sel)){B[r][c]='';drawM();return}
+  if(!sel)return;
+  B.forEach(row=>row.forEach((p,i)=>{if(p===sel)row[i]=''}));
+  B[r][c]=sel;drawM();
+}
+function chkM(){
+  const N=Z.n,placed=B.flat().filter(Boolean).length;
+  if(placed<N){$('mm').className='m';$('mm').textContent='Falta ubicar a '+(N-placed)+' personaje(s).';return}
+  const good=Object.entries(Z.sol).filter(([k,[r,c]])=>B[r][c]===k).length;
+  if(good<N){S.err++;hud();$('mm').className='m no';$('mm').textContent=good+' de '+N+' bien ubicados. Relee los testimonios.';return}
+  $('mm').className='m ok';$('mm').textContent='✔ ¡El tablero es correcto!';
+  $('acc').innerHTML=`<div class="card"><p><b>Acusación.</b> ¿Quién estaba en la misma sala que la víctima?</p><div class="row"><select id="cu"><option value="">Elige…</option>${Object.entries(Z.ppl).map(([k,[e,n]])=>`<option value="${k}">${n}</option>`).join('')}</select><button onclick="accuse()">Acusar</button></div><small class="m" id="ma"></small></div>`;
+}
+function accuse(){
+  const v=$('cu').value;if(!v)return;
+  if(v!==Z.culp){S.err++;hud();$('ma').className='m no';$('ma').textContent='✖ Esa persona estaba en otra sala. Mira dónde cayó '+Z.vi+'.';return}
+  $('acc').innerHTML=`<div class="card"><p class="ok"><b>✔ ¡Caso resuelto!</b></p><p>${Z.end}</p><button onclick="go(${S.room+1})">Continuar</button></div>`;
+}
+
+/* ---- Sala 5: ordenar la historia ---- */
+let ord;
+function r5(){
+  ord=[5,2,7,0,4,1,6,3];
+  $('room').innerHTML=`<p>Los retratos de Pemberley están desordenados. Ordena estos ocho sucesos de la historia, del <b>primero al último</b>, con las flechas.</p><div id="ev"></div><small class="m" id="me"></small><button onclick="chkO()">Comprobar orden</button>`;
+  drawO();
+}
+function drawO(){
+  $('ev').innerHTML=ord.map((e,i)=>`<div class="ev"><b>${i+1}.</b><span>${EV[e][0]}</span><button class="ghost" ${i?'':'disabled'} onclick="mv(${i},-1)" aria-label="Subir">↑</button><button class="ghost" ${i<7?'':'disabled'} onclick="mv(${i},1)" aria-label="Bajar">↓</button></div>`).join('');
+}
+function mv(i,d){[ord[i],ord[i+d]]=[ord[i+d],ord[i]];drawO()}
+function chkO(){
+  const good=ord.filter((e,i)=>e===i).length;
+  if(good<8){S.err++;hud();$('me').className='m no';$('me').textContent=good+' de 8 en su lugar. Consulta el índice y los capítulos del libro.';return}
+  fin();
+}
+
+/* ---- Final: certificado (la «captura») ---- */
+function fin(){
+  active=false;
+  const secs=Math.round((Date.now()-S.t0)/1000),ex=exits(),d=new Date(),p=v=>String(v).padStart(2,'0'),
+   stamp=''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes()),
+   code=vcode(S.name,secs,S.err,S.hints,ex,stamp);
+  ls.s('pp_exits','0');hud();
+  $('stage').innerHTML=`<h2>¡Escapaste de Pemberley!</h2><p>Descarga tu certificado y envíalo en el formulario.</p><canvas id="cv"></canvas>
+  <div class="row"><button onclick="dl()">1. Descargar imagen (PNG)</button><button class="ghost" onclick="forms()">2. Abrir Microsoft Forms</button></div>
+  <p style="font-size:.9rem">En el formulario, inicia sesión con tu cuenta institucional y adjunta la imagen descargada. En celular, si no se descarga, mantén presionada la imagen y guárdala.</p>`;
+  const c=$('cv'),x=c.getContext('2d');c.width=1000;c.height=640;
+  const F='"Cormorant Garamond",Georgia,serif',G='Spectral,Georgia,serif';
+  x.fillStyle='#fbfaf6';x.fillRect(0,0,1000,640);
+  x.strokeStyle='#3d5a73';x.lineWidth=10;x.strokeRect(18,18,964,604);
+  x.strokeStyle='#a8842c';x.lineWidth=2;x.strokeRect(38,38,924,564);
+  x.textAlign='center';x.fillStyle='#3d5a73';x.font='700 54px '+F;x.fillText('Certificado de escape',500,115);
+  x.fillStyle='#1f2a36';x.font='italic 24px '+G;x.fillText('Orgullo y prejuicio · Jane Austen · Literatura, décimo año',500,155);
+  x.font='22px '+G;x.fillText('Se certifica que',500,225);
+  let fs=60;do{x.font='700 '+fs+'px '+F;fs-=2}while(x.measureText(S.name).width>820&&fs>22);
+  x.fillStyle='#7a1f2b';x.fillText(S.name,500,293);
+  x.strokeStyle='#a8842c';x.beginPath();x.moveTo(180,313);x.lineTo(820,313);x.stroke();
+  x.fillStyle='#1f2a36';x.font='22px '+G;
+  x.fillText('Sección '+S.grupo+' · resolvió las cinco salas del recorrido',500,355);
+  x.fillText('Longbourn, Netherfield, Rosings, Brighton y Pemberley.',500,390);
+  x.font='20px '+G;
+  x.fillText('Tiempo: '+fmt(secs)+'   ·   Errores: '+S.err+'   ·   Pistas: '+S.hints+'   ·   Salidas de pestaña: '+ex,500,455);
+  x.fillStyle='#3d5a73';x.font='700 26px '+G;x.fillText('Código de verificación: '+code,500,515);
+  x.font='italic 16px '+G;x.fillText(d.toLocaleString('es-CR')+' · Registro '+stamp,500,572);
+}
+function dl(){
+  $('cv').toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);
+    a.download='escape_'+S.grupo+'_'+norm(S.name).replace(/ /g,'_')+'.png';a.click()});
+}
+function forms(){
+  if(CFG.FORMS_URL.startsWith('PEGA')){alert('El docente aún no configuró el enlace de Microsoft Forms.');return}
+  window.open(CFG.FORMS_URL,'_blank','noopener');
+}
+
+/* ---- Panel docente: abrir con index.html#docente ---- */
+function docente(){
+  return `<div class="card"><h2>Panel docente</h2><p><b>Verificar certificado</b> (datos tal como aparecen en la imagen)</p>
+  <div class="row"><input id="vn" placeholder="Nombre"><input id="vt" placeholder="Tiempo mm:ss"><input id="ve" placeholder="Errores"><input id="vh" placeholder="Pistas"><input id="vx" placeholder="Salidas"><input id="vs" placeholder="Registro 20261010-1432"></div>
+  <button onclick="vf()">Calcular código</button> <b id="vr"></b>
+  <p style="margin-top:14px"><b>Probar salas sin bloqueo</b></p><div class="row">${[0,1,2,3,4,5].map(i=>`<button class="ghost" onclick="test(${i})">${i<5?'Sala '+(i+1):'Certificado'}</button>`).join('')}</div></div>`;
+}
+function vf(){
+  const t=$('vt').value.split(':'),s=(+t[0])*60+(+t[1]||0);
+  $('vr').textContent=vcode($('vn').value.trim(),s,+$('ve').value,+$('vh').value,+$('vx').value,$('vs').value.trim());
+}
+function test(i){S.name='Docente Prueba';S.grupo='10A';S.t0=Date.now();S.err=0;S.hints=0;active=false;i<5?go(i):fin()}
+intro();
+</script>
+</body>
+</html>
