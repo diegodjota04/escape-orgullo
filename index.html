@@ -32,6 +32,9 @@ small.m{display:block;min-height:1.4em}.ok{color:var(--ok)}.no{color:var(--bad)}
 .pal button{background:#fff;color:var(--ink);border:2px solid #8ea2b0;font-size:.95rem}.pal button.on{border-color:var(--gold);background:#f3ead0}
 .ev{display:flex;gap:8px;align-items:center;border:1px solid #b9c6cf;background:#fff;padding:8px 10px;border-radius:4px;margin:6px 0}
 .ev span{flex:1}.ev button{padding:4px 10px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;background:#fff;color:var(--ink);border:1px solid #8ea2b0;font-weight:400}
+.opt.good{background:#e3f1e6;border-color:var(--ok);opacity:1}.opt.badopt{opacity:.5;text-decoration:line-through}
+a.btn{display:inline-block;font-weight:600;padding:9px 16px;border:1px solid var(--blue);border-radius:4px;color:var(--blue);text-decoration:none}
 canvas{width:100%;height:auto;border:1px solid #b9c6cf;border-radius:4px}
 #lock{position:fixed;inset:0;background:#1f2a36;color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:99}
 #lock b{font:700 5rem 'Cormorant Garamond',serif;color:#e0c26e}
@@ -79,7 +82,8 @@ const ROOMS=[
  {t:'Sala 2 · Netherfield',s:'El caso del baile'},
  {t:'Sala 3 · Rosings y Hunsford',s:'La mesa de lady Catherine'},
  {t:'Sala 4 · Brighton',s:'El caso de la fuga'},
- {t:'Sala 5 · Pemberley',s:'El orden del destino'}];
+ {t:'Sala 5 · Pemberley',s:'El orden del destino'},
+ {t:'Sala 6 · El veredicto',s:'Diez preguntas para jurados de la novela'}];
 const QS={
 0:[
  {q:'La finca vecina que alquila el señor Bingley, y que desata la fiebre casamentera de la señora Bennet, se llama…',a:/netherfield/,h:'Capítulo 1'},
@@ -142,7 +146,7 @@ setInterval(()=>{if(active&&$('clk'))$('clk').textContent='⏱ '+fmt((Date.now()
 
 function intro(){
   $('stage').innerHTML=`<h1>Orgullo y prejuicio</h1><p><i>Escape room literario · Décimo año</i></p>
-  <div class="card"><p>Una verdad universalmente reconocida: quien termina la novela, escapa. Recorrerás cinco salas y cada una exige haber leído el libro (la edición del curso te será de gran ayuda).</p>
+  <div class="card"><p>Una verdad universalmente reconocida: quien termina la novela, escapa. Recorrerás seis salas y cada una exige haber leído el libro (la edición del curso te será de gran ayuda).</p>
   <p><b>Reglas</b></p><ul>
   <li>Si cambias de pestaña o de aplicación, quedarás bloqueado ${CFG.LOCK_MIN} minutos y quedará anotado en tu certificado.</li>
   <li>Los errores y las pistas también se anotan.</li>
@@ -161,7 +165,7 @@ function go(i){
   S.room=i;hud();
   const dots=ROOMS.map((r,k)=>`<span style="opacity:${k<=i?1:.35}">${k<i?'✔':'●'} ${r.t.split(' · ')[0]}</span>`).join(' &nbsp; ');
   $('stage').innerHTML=`<p style="font-size:.9rem;color:var(--blue)">${dots}</p><h2>${ROOMS[i].t}</h2><p><i>${ROOMS[i].s}</i></p><div id="room"></div>`;
-  [()=>qroom(0),()=>mur(1),()=>qroom(2),()=>mur(3),r5][i]();
+  [()=>qroom(0),()=>mur(1),()=>qroom(2),()=>mur(3),r5,r6][i]();
 }
 
 /* ---- Salas de preguntas abiertas (1 y 3) ---- */
@@ -245,7 +249,33 @@ function mv(i,d){[ord[i],ord[i+d]]=[ord[i+d],ord[i]];drawO()}
 function chkO(){
   const good=ord.filter((e,i)=>e===i).length;
   if(good<8){S.err++;hud();$('me').className='m no';$('me').textContent=good+' de 8 en su lugar. Consulta el índice y los capítulos del libro.';return}
-  fin();
+  go(5);
+}
+
+const QZ=[
+ {q:'La novela abre con una frase solemne sobre los hombres solteros y ricos que «necesitan» esposa. ¿Qué efecto produce?',o:['Ironía: en realidad son las familias con hijas casaderas, como los Bennet, quienes buscan marido rico.','Presenta una ley de Inglaterra que obliga a casarse.','Describe con seriedad el carácter de Darcy.','Muestra que los ricos son los más desdichados.'],e:'Capítulo 1. La ironía revela que el matrimonio era la gran salida económica de las mujeres.'},
+ {q:'¿Por qué es tan urgente casar bien a las hermanas Bennet?',o:['Porque Longbourn pasará a un pariente varón y ellas quedarían sin sustento si el padre muere.','Porque el señor Bennet quiere mudarse a Londres.','Porque la ley exige casarse a los dieciocho años.','Porque la señora Bennet heredó una deuda enorme.'],e:'Capítulos 1 y 13. La herencia vinculada deja a la familia en una situación económica frágil.'},
+ {q:'Elizabeth rechaza a Collins y Charlotte lo acepta. ¿Qué contraste plantea la novela?',o:['Dos ideas del matrimonio: la que busca afecto y respeto frente a la que busca seguridad económica.','Elizabeth es pobre y Charlotte es rica.','Charlotte ama a Collins y Elizabeth no.','Ambas lo rechazan por orden de lady Catherine.'],e:'Capítulos 19 y 22. Para Charlotte, el matrimonio era la «única colocación honrosa» de una joven sin fortuna.'},
+ {q:'En su carta, ¿por qué dice Darcy que separó a Bingley de Jane?',o:['Creyó que Jane no sentía verdadero afecto y le molestó la falta de decoro de la madre y de las hermanas menores.','Porque Jane estaba comprometida con otro hombre.','Porque Bingley se lo pidió para escapar de la boda.','Porque lady Catherine se lo ordenó.'],e:'Capítulo 35. Fue un error de juicio por las apariencias: la serenidad de Jane ocultaba sus sentimientos.'},
+ {q:'¿Qué revela la carta de Darcy sobre Wickham?',o:['Que su fama de víctima era falsa y que intentó fugarse con Georgiana, la hermana menor de Darcy.','Que Wickham es el verdadero heredero de Pemberley.','Que Wickham salvó a Darcy de un escándalo.','Que Wickham es primo de Elizabeth.'],e:'Capítulo 35. Elizabeth descubre que su simpatía por Wickham fue un error de juicio.'},
+ {q:'Elizabeth se encanta con los modales de Wickham y rechaza a Darcy a primera vista. ¿Qué tema ilustra esto?',o:['Que las primeras impresiones y las buenas maneras pueden engañar, y que el prejuicio nubla el juicio.','Que los oficiales siempre son sinceros.','Que la timidez es señal de mal carácter.','Que la riqueza vuelve virtuosa a la gente.'],e:'Capítulos 3, 16 y 36. Más tarde Elizabeth reconoce que había sido «ciega, parcial, prejuiciosa, absurda».'},
+ {q:'En Hunsford, ¿por qué rechaza Elizabeth la primera declaración de Darcy?',o:['Lo considera culpable de separar a Jane de Bingley y de perjudicar a Wickham, y su declaración le pareció arrogante.','Porque ya estaba comprometida con Collins.','Porque Darcy no tenía fortuna.','Porque lady Catherine se lo prohibió.'],e:'Capítulo 34. Darcy mezcla amor y orgullo: habla de la «inferioridad» de Elizabeth y de los obstáculos de familia.'},
+ {q:'¿Cómo se resuelve el escándalo de la fuga de Lydia?',o:['Darcy localiza a la pareja y, en secreto, paga las deudas de Wickham y arregla la boda.','El señor Bennet reta a duelo a Wickham.','Lydia regresa sola a Longbourn y el asunto se olvida.','Bingley paga la dote de las cinco hermanas.'],e:'Capítulos 52 y 59. El gesto muestra su cambio: el orgullo de Darcy cede ante la generosidad y la discreción.'},
+ {q:'En la visita de lady Catherine a Longbourn, ¿qué muestra la respuesta de Elizabeth?',o:['Que defiende su libertad de elegir y se considera igual a Darcy, hija de un caballero, pese a la diferencia de clase.','Que acepta no casarse con Darcy para evitar conflictos.','Que teme perder la herencia de Longbourn.','Que desea ser aceptada por la alta sociedad.'],e:'Capítulo 56. Elizabeth desafía la presión social y las obligaciones que impone la jerarquía.'},
+ {q:'El final con dos bodas por afecto, pero también con casa, renta y buena posición, ¿qué dice sobre el género sentimental?',o:['Que cumple el final feliz del romance, pero lo vuelve verosímil: el amor necesita autoconocimiento y condiciones materiales.','Que el amor es suficiente por sí solo y el dinero no importa.','Que el amor siempre termina en tragedia.','Que el matrimonio es solo una obligación social sin sentimientos.'],e:'Capítulos 58 a 61. Austen combina el romance con el realismo social y la ironía.'}];
+let qzOk;
+function r6(){
+  qzOk=new Set();
+  $('room').innerHTML=`<p>Último tribunal: diez preguntas de selección. Cada error cuenta, y al acertar verás una breve explicación con los capítulos para repasar.</p>`+
+  QZ.map((o,i)=>{const idx=[0,1,2,3].sort(()=>Math.random()-.5);
+    return `<div class="card"><p>${i+1}. ${o.q}</p><div id="z${i}">${idx.map(k=>`<button class="opt" onclick="zp(${i},${k},this)">${o.o[k]}</button>`).join('')}</div><small class="m" id="zm${i}"></small></div>`}).join('')+
+  `<button id="zn" disabled onclick="fin()">Ver mi certificado</button>`;
+}
+function zp(i,k,b){
+  if(qzOk.has(i))return;
+  if(k===0){qzOk.add(i);b.classList.add('good');[...$('z'+i).children].forEach(x=>x.disabled=true);
+    $('zm'+i).className='m ok';$('zm'+i).textContent='✔ '+QZ[i].e;if(qzOk.size===QZ.length)$('zn').disabled=false}
+  else{S.err++;hud();b.disabled=true;b.classList.add('badopt');$('zm'+i).className='m no';$('zm'+i).textContent='✖ Esa no es. Piensa en lo que ocurre en la novela e inténtalo de nuevo.'}
 }
 
 /* ---- Final: certificado (la «captura») ---- */
@@ -255,8 +285,9 @@ function fin(){
    stamp=''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes()),
    code=vcode(S.name,secs,S.err,S.hints,ex,stamp);
   ls.s('pp_exits','0');hud();
-  $('stage').innerHTML=`<h2>¡Escapaste de Pemberley!</h2><p>Descarga tu certificado y envíalo en el formulario.</p><canvas id="cv"></canvas>
-  <div class="row"><button onclick="dl()">1. Descargar imagen (PNG)</button><button class="ghost" onclick="forms()">2. Abrir Microsoft Forms</button></div>
+  $('stage').innerHTML=`<h2>¡Lograste escapar!</h2><p>Descarga tu certificado y envíalo en el formulario.</p><canvas id="cv"></canvas>
+  <div class="row"><button onclick="dl()">1. Descargar imagen (PNG)</button><a class="btn" href="${CFG.FORMS_URL}" target="_blank" rel="noopener">2. Abrir Microsoft Forms</a></div>
+  <p style="font-size:.9rem">¿No abre? Es normal si estás en una ventana privada o de incógnito, o si el navegador bloqueó la ventana. Copia el enlace y pégalo en una ventana normal, con tu cuenta institucional: <button class="ghost" onclick="copyF()">Copiar enlace</button> <small id="cp"></small></p>
   <p style="font-size:.9rem">En el formulario, inicia sesión con tu cuenta institucional y adjunta la imagen descargada. En celular, si no se descarga, mantén presionada la imagen y guárdala.</p>`;
   const c=$('cv'),x=c.getContext('2d');c.width=1000;c.height=640;
   const F='"Cormorant Garamond",Georgia,serif',G='Spectral,Georgia,serif';
@@ -270,12 +301,16 @@ function fin(){
   x.fillStyle='#7a1f2b';x.fillText(S.name,500,293);
   x.strokeStyle='#a8842c';x.beginPath();x.moveTo(180,313);x.lineTo(820,313);x.stroke();
   x.fillStyle='#1f2a36';x.font='22px '+G;
-  x.fillText('Sección '+S.grupo+' · resolvió las cinco salas del recorrido',500,355);
-  x.fillText('Longbourn, Netherfield, Rosings, Brighton y Pemberley.',500,390);
+  x.fillText('Sección '+S.grupo+' · resolvió las seis salas del recorrido',500,355);
+  x.fillText('Longbourn, Netherfield, Rosings, Brighton, Pemberley y el Veredicto.',500,390);
   x.font='20px '+G;
   x.fillText('Tiempo: '+fmt(secs)+'   ·   Errores: '+S.err+'   ·   Pistas: '+S.hints+'   ·   Salidas de pestaña: '+ex,500,455);
   x.fillStyle='#3d5a73';x.font='700 26px '+G;x.fillText('Código de verificación: '+code,500,515);
   x.font='italic 16px '+G;x.fillText(d.toLocaleString('es-CR')+' · Registro '+stamp,500,572);
+}
+function copyF(){
+  const ok=()=>{$('cp').textContent='¡Copiado!'},no=()=>{$('cp').textContent=CFG.FORMS_URL};
+  try{navigator.clipboard.writeText(CFG.FORMS_URL).then(ok,no)}catch(e){no()}
 }
 function dl(){
   $('cv').toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);
@@ -291,13 +326,13 @@ function docente(){
   return `<div class="card"><h2>Panel docente</h2><p><b>Verificar certificado</b> (datos tal como aparecen en la imagen)</p>
   <div class="row"><input id="vn" placeholder="Nombre"><input id="vt" placeholder="Tiempo mm:ss"><input id="ve" placeholder="Errores"><input id="vh" placeholder="Pistas"><input id="vx" placeholder="Salidas"><input id="vs" placeholder="Registro 20261010-1432"></div>
   <button onclick="vf()">Calcular código</button> <b id="vr"></b>
-  <p style="margin-top:14px"><b>Probar salas sin bloqueo</b></p><div class="row">${[0,1,2,3,4,5].map(i=>`<button class="ghost" onclick="test(${i})">${i<5?'Sala '+(i+1):'Certificado'}</button>`).join('')}</div></div>`;
+  <p style="margin-top:14px"><b>Probar salas sin bloqueo</b></p><div class="row">${[0,1,2,3,4,5,6].map(i=>`<button class="ghost" onclick="test(${i})">${i<6?'Sala '+(i+1):'Certificado'}</button>`).join('')}</div></div>`;
 }
 function vf(){
   const t=$('vt').value.split(':'),s=(+t[0])*60+(+t[1]||0);
   $('vr').textContent=vcode($('vn').value.trim(),s,+$('ve').value,+$('vh').value,+$('vx').value,$('vs').value.trim());
 }
-function test(i){S.name='Docente Prueba';S.grupo='10A';S.t0=Date.now();S.err=0;S.hints=0;active=false;i<5?go(i):fin()}
+function test(i){S.name='Docente Prueba';S.grupo='10A';S.t0=Date.now();S.err=0;S.hints=0;active=false;i<6?go(i):fin()}
 intro();
 </script>
 </body>
