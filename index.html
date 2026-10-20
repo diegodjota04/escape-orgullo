@@ -35,6 +35,7 @@ small.m{display:block;min-height:1.4em}.ok{color:var(--ok)}.no{color:var(--bad)}
 .opt{display:block;width:100%;text-align:left;margin:6px 0;background:#fff;color:var(--ink);border:1px solid #8ea2b0;font-weight:400}
 .opt.good{background:#e3f1e6;border-color:var(--ok);opacity:1}.opt.badopt{opacity:.5;text-decoration:line-through}
 a.btn{display:inline-block;font-weight:600;padding:9px 16px;border:1px solid var(--blue);border-radius:4px;color:var(--blue);text-decoration:none}
+table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{padding:5px 6px;border-bottom:1px solid #b9c6cf;text-align:left}
 canvas{width:100%;height:auto;border:1px solid #b9c6cf;border-radius:4px}
 #lock{position:fixed;inset:0;background:#1f2a36;color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:99}
 #lock b{font:700 5rem 'Cormorant Garamond',serif;color:#e0c26e}
@@ -48,10 +49,10 @@ canvas{width:100%;height:auto;border:1px solid #b9c6cf;border-radius:4px}
 </div>
 <script>
 /* ===== CONFIGURACIÓN DEL DOCENTE ===== */
-const CFG={FORMS_URL:"https://forms.cloud.microsoft/r/1UxBk3MyW7",LOCK_MIN:3,SALT:"STEVENTON"};
+const CFG={FORMS_URL:"https://forms.cloud.microsoft/r/1UxBk3MyW7",LOCK_MIN:3,SALT:"STEVENTON",LIVE_URL:"",DOCENTE_HASH:"3CBF-3409"};
 
 const $=id=>document.getElementById(id);
-const S={name:"",grupo:"",err:0,hints:0,t0:0,room:0};
+const S={name:"",grupo:"",err:0,hints:0,t0:0,room:0,sid:""};
 const ls={g:k=>{try{return localStorage.getItem(k)}catch(e){return null}},s:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 const fmt=s=>{s=Math.max(0,Math.ceil(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
@@ -63,7 +64,7 @@ function lock(){
   if(!active)return;
   const n=Date.now();
   if((+ls.g('pp_lock')||0)>n)return;
-  ls.s('pp_lock',n+CFG.LOCK_MIN*6e4);ls.s('pp_exits',exits()+1);tick();
+  ls.s('pp_lock',n+CFG.LOCK_MIN*6e4);ls.s('pp_exits',exits()+1);tick();report();
 }
 function tick(){
   clearInterval(tm);
@@ -138,9 +139,18 @@ const hash=s=>{let h=2166136261,g=5381;for(const c of s){h=Math.imul(h^c.charCod
   const p=v=>(v>>>0).toString(16).padStart(8,'0').toUpperCase();return p(h).slice(0,4)+'-'+p(g).slice(0,4)};
 const vcode=(n,secs,e,h,x,st)=>hash([norm(n),secs,e,h,x,st,CFG.SALT].join('|'));
 
+/* ===== SEGUIMIENTO EN VIVO (opcional: requiere CFG.LIVE_URL) ===== */
+function report(st,ex){
+  if(!https://orgulloyprejuicioconsola-default-rtdb.firebaseio.com/||!S.sid)return;
+  const l=+ls.g('pp_lock')||0;
+  try{fetch(https://orgulloyprejuicioconsola-default-rtdb.firebaseio.com/+'/sesiones/'+S.sid+'.json',{method:'PUT',keepalive:true,body:JSON.stringify({n:S.name,g:S.grupo,r:S.room,e:S.err,h:S.hints,x:ex===undefined?exits():ex,s:st||'curso',l:l,t:Date.now()})}).catch(()=>{})}catch(e){}
+}
+setInterval(()=>{if(active)report()},20000);
+
 /* ===== PANTALLAS ===== */
 function hud(){
   $('top').innerHTML=S.name?`<div class="bar"><span>🎩 ${S.name.replace(/</g,'&lt;')} · ${S.grupo}</span><span>Errores: ${S.err} · Pistas: ${S.hints}</span><span id="clk">⏱ 00:00</span></div>`:'';
+  if(active)report();
 }
 setInterval(()=>{if(active&&$('clk'))$('clk').textContent='⏱ '+fmt((Date.now()-S.t0)/1000)},1000);
 
@@ -153,13 +163,13 @@ function intro(){
   <li>Al final obtendrás un certificado con tu nombre y un código de verificación para enviarlo por Microsoft Forms.</li></ul>
   <div class="row"><input id="nm" placeholder="Nombre completo (2 a 5 palabras)" autocomplete="name"><select id="gr" aria-label="Sección"><option value="">Sección</option><option>10A</option><option>10B</option><option>10C</option></select></div>
   <small class="m no" id="em"></small>
-  <button onclick="start()">Entrar a Longbourn</button></div>`+(location.hash==='#docente'?docente():'');
+  <button onclick="start()">Entrar a Longbourn</button></div>`+(location.hash==='#docente'?gate():'');
 }
 function start(){
   const n=$('nm').value.trim().replace(/\s+/g,' '),w=n.split(' '),g=$('gr').value;
   if(w.length<2||w.length>5||!w.every(x=>/^\p{L}[\p{L}'’.-]*$/u.test(x))){$('em').textContent='Escribe tu nombre completo: entre 2 y 5 palabras, solo con letras.';return}
   if(!g){$('em').textContent='Elige tu sección (10A, 10B o 10C).';return}
-  S.name=n;S.grupo=g;S.t0=Date.now();active=true;go(0);
+  S.name=n;S.grupo=g;S.t0=Date.now();S.sid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);active=true;go(0);
 }
 function go(i){
   S.room=i;hud();
@@ -284,7 +294,7 @@ function fin(){
   const secs=Math.round((Date.now()-S.t0)/1000),ex=exits(),d=new Date(),p=v=>String(v).padStart(2,'0'),
    stamp=''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes()),
    code=vcode(S.name,secs,S.err,S.hints,ex,stamp);
-  ls.s('pp_exits','0');hud();
+  ls.s('pp_exits','0');hud();report('fin',ex);
   $('stage').innerHTML=`<h2>¡Lograste escapar!</h2><p>Descarga tu certificado y envíalo en el formulario.</p><canvas id="cv"></canvas>
   <div class="row"><button onclick="dl()">1. Descargar imagen (PNG)</button><a class="btn" href="${CFG.FORMS_URL}" target="_blank" rel="noopener">2. Abrir Microsoft Forms</a></div>
   <p style="font-size:.9rem">¿No abre? Es normal si estás en una ventana privada o de incógnito, o si el navegador bloqueó la ventana. Copia el enlace y pégalo en una ventana normal, con tu cuenta institucional: <button class="ghost" onclick="copyF()">Copiar enlace</button> <small id="cp"></small></p>
@@ -294,8 +304,8 @@ function fin(){
   x.fillStyle='#fbfaf6';x.fillRect(0,0,1000,640);
   x.strokeStyle='#3d5a73';x.lineWidth=10;x.strokeRect(18,18,964,604);
   x.strokeStyle='#a8842c';x.lineWidth=2;x.strokeRect(38,38,924,564);
-  x.textAlign='center';x.fillStyle='#3d5a73';x.font='700 54px '+F;x.fillText('Certificado de finalización',500,115);
-  x.fillStyle='#1f2a36';x.font='italic 24px '+G;x.fillText('Orgullo y prejuicio · Jane Austen · Español, décimo año',500,155);
+  x.textAlign='center';x.fillStyle='#3d5a73';x.font='700 54px '+F;x.fillText('Certificado de escape',500,115);
+  x.fillStyle='#1f2a36';x.font='italic 24px '+G;x.fillText('Orgullo y prejuicio · Jane Austen · Literatura, décimo año',500,155);
   x.font='22px '+G;x.fillText('Se certifica que',500,225);
   let fs=60;do{x.font='700 '+fs+'px '+F;fs-=2}while(x.measureText(S.name).width>820&&fs>22);
   x.fillStyle='#7a1f2b';x.fillText(S.name,500,293);
@@ -321,18 +331,57 @@ function forms(){
   window.open(CFG.FORMS_URL,'_blank','noopener');
 }
 
-/* ---- Panel docente: abrir con index.html#docente ---- */
+/* ---- Panel docente (con contraseña): abrir con index.html#docente ---- */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pwh=s=>hash('pp-docente|'+s);
+const ss={g:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},s:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}}};
+let dpTimer;
+function gate(){
+  if(ss.g('pp_doc')==='1'){setTimeout(dpStart,0);return `<div id="dp">${docente()}</div>`}
+  return `<div id="dp" class="card"><h2>Panel docente</h2><div class="row"><input id="pw" type="password" placeholder="Contraseña" autocomplete="off"><button onclick="unlock()">Entrar</button></div><small class="m no" id="pe"></small></div>`;
+}
+function unlock(){
+  if(pwh($('pw').value)!==CFG.DOCENTE_HASH){$('pe').textContent='Contraseña incorrecta.';return}
+  ss.s('pp_doc','1');$('dp').className='';$('dp').innerHTML=docente();dpStart();
+}
 function docente(){
-  return `<div class="card"><h2>Panel docente</h2><p><b>Verificar certificado</b> (datos tal como aparecen en la imagen)</p>
+  return `<div class="card"><h2>Panel docente</h2><p><b>Estudiantes en curso</b> <small id="lvt"></small></p><div id="lv" style="overflow-x:auto"></div>
+  <div class="row"><button class="ghost" onclick="dpLoad()">Actualizar</button><button class="ghost" onclick="dpClear()">Borrar datos de seguimiento</button></div></div>
+  <div class="card"><p><b>Verificar certificado</b> (datos tal como aparecen en la imagen)</p>
   <div class="row"><input id="vn" placeholder="Nombre"><input id="vt" placeholder="Tiempo mm:ss"><input id="ve" placeholder="Errores"><input id="vh" placeholder="Pistas"><input id="vx" placeholder="Salidas"><input id="vs" placeholder="Registro 20261010-1432"></div>
   <button onclick="vf()">Calcular código</button> <b id="vr"></b>
-  <p style="margin-top:14px"><b>Probar salas sin bloqueo</b></p><div class="row">${[0,1,2,3,4,5,6].map(i=>`<button class="ghost" onclick="test(${i})">${i<6?'Sala '+(i+1):'Certificado'}</button>`).join('')}</div></div>`;
+  <p style="margin-top:14px"><b>Probar salas sin bloqueo</b></p><div class="row">${[0,1,2,3,4,5,6].map(i=>`<button class="ghost" onclick="test(${i})">${i<6?'Sala '+(i+1):'Certificado'}</button>`).join('')}</div>
+  <p style="margin-top:14px"><b>Cambiar contraseña</b></p><div class="row"><input id="np" placeholder="Nueva contraseña"><button class="ghost" onclick="mkpw()">Generar código</button></div>
+  <small class="m" id="nh">Copia el código generado y pégalo en <code>CFG.DOCENTE_HASH</code>.</small></div>`;
+}
+function mkpw(){const v=$('np').value;if(v.length<6){$('nh').textContent='Usa al menos 6 caracteres.';return}$('nh').textContent='Código: '+pwh(v)}
+function dpStart(){dpLoad();clearInterval(dpTimer);dpTimer=setInterval(dpLoad,10000)}
+async function dpLoad(){
+  const el=$('lv');if(!el)return;
+  if(!CFG.LIVE_URL){el.innerHTML='<p>Seguimiento no configurado. Pega la dirección de tu base de datos en <code>CFG.LIVE_URL</code>.</p>';return}
+  try{
+    const d=await (await fetch(CFG.LIVE_URL+'/sesiones.json')).json()||{},now=Date.now();
+    const rows=Object.values(d).filter(o=>o&&o.n).sort((a,b)=>(a.g+a.n).localeCompare(b.g+b.n));
+    const st=o=>o.s==='fin'?['Terminó','ok']:(o.l>now?['Bloqueado','no']:(now-o.t>90000?['Sin señal','']:['En curso','']));
+    const ago=ms=>ms<60000?Math.round(ms/1000)+' s':Math.round(ms/60000)+' min';
+    const c={};rows.forEach(o=>{const k=st(o)[0];c[k]=(c[k]||0)+1});
+    el.innerHTML=rows.length?`<p>${Object.entries(c).map(([k,v])=>k+': '+v).join(' · ')}</p><table><tr><th>Estudiante</th><th>Secc.</th><th>Sala</th><th>Estado</th><th>Err.</th><th>Pist.</th><th>Sal.</th><th>Señal</th></tr>`+
+      rows.map(o=>{const s=st(o);return `<tr><td>${esc(o.n)}</td><td>${esc(o.g)}</td><td>${o.s==='fin'?'6/6':(+o.r+1)+'/6'}</td><td class="${s[1]}">${s[0]}</td><td>${+o.e||0}</td><td>${+o.h||0}</td><td>${+o.x||0}</td><td>${ago(now-o.t)}</td></tr>`}).join('')+'</table>':'<p>Aún no hay estudiantes conectados.</p>';
+    $('lvt').textContent='(se actualiza cada 10 s)';
+  }catch(e){el.innerHTML='<p class="no">No se pudo leer la base de datos. Revisa CFG.LIVE_URL y las reglas.</p>'}
+}
+async function dpClear(){
+  if(!CFG.LIVE_URL||!confirm('¿Borrar todos los datos de seguimiento?'))return;
+  try{await fetch(CFG.LIVE_URL+'/sesiones.json',{method:'DELETE'})}catch(e){}
+  dpLoad();
 }
 function vf(){
   const t=$('vt').value.split(':'),s=(+t[0])*60+(+t[1]||0);
   $('vr').textContent=vcode($('vn').value.trim(),s,+$('ve').value,+$('vh').value,+$('vx').value,$('vs').value.trim());
 }
-function test(i){S.name='Docente Prueba';S.grupo='10A';S.t0=Date.now();S.err=0;S.hints=0;active=false;i<6?go(i):fin()}
+function test(i){S.name='Docente Prueba';S.grupo='10A';S.t0=Date.now();S.err=0;S.hints=0;S.sid='';active=false;i<6?go(i):fin()}
+
+window.addEventListener('hashchange',()=>location.reload());
 intro();
 </script>
 </body>
